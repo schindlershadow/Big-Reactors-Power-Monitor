@@ -1,0 +1,17 @@
+reactor = peripheral.wrap("back")
+while true do
+
+  print("Power: " .. reactor.getEnergyStored() .. "/10000000")
+
+
+  if reactor.getEnergyStored() >=9000000 then
+      reactor.setActive(false)
+      color = red
+  end
+  if reactor.getEnergyStored() <= (10000000/4) then
+    reactor.setActive(true)         
+    color = blue 
+  end
+  
+  sleep(2)
+end
