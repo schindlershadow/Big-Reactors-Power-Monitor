@@ -92,13 +92,16 @@ while true do
   local capacity = reactor.getEnergyCapacity()
   local stored = reactor.getEnergyStored()
 
-  if stored >= capacity then
+  print("Stored: " .. stored .. " Capacity: " .. capacity)
+  if stored >= (capacity * 0.8) and reactor.getActive() == true then
+    print("Reactor Energy is full, shutting down.")
     reactor.setActive(false)
     mon.setBackgroundColor(colors.red)
     color = red
   end
 
-  if stored <= (reactor.getEnergyCapacity() / 4) then
+  if stored <= (reactor.getEnergyCapacity() / 4) and reactor.getActive() == false then
+    print("Reactor Energy is low, starting up.")
     reactor.setActive(true)
     mon.setBackgroundColor(colors.blue)
     color = blue
