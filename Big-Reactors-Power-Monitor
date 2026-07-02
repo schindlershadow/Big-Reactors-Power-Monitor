@@ -1,145 +1,175 @@
+playSounds = true
+
 reactor = peripheral.find("BigReactors-Reactor")
 while reactor == nil do
-  print("Reactor not found, please connect a reactor and try again.")
-  reactor = peripheral.find("BigReactors-Reactor")
-  sleep(1)
+    print("Reactor not found, please connect a reactor and try again.")
+    reactor = peripheral.find("BigReactors-Reactor")
+    sleep(1)
 end
 
 mon = peripheral.find("monitor")
 while mon == nil do
-  print("Monitor not found, please connect a monitor and try again.")
-  mon = peripheral.find("monitor")
-  sleep(1)
+    print("Monitor not found, please connect a monitor and try again.")
+    mon = peripheral.find("monitor")
+    sleep(1)
 end
 
 spkr = peripheral.find("speaker")
 if spkr == nil then
-  print("Speaker not found")
+    print("Speaker not found")
 end
 
 mon.clear()
 mon.setBackgroundColor(colors.blue)
 color = blue
 
---power = 0
---fuel = 0
---maxFuel = 0
---rf = 0
+-- power = 0
+-- fuel = 0
+-- maxFuel = 0
+-- rf = 0
 
 function calc(min, max)
-  percent = 53 / max
+    percent = 53 / max
 
-  x = percent * min
+    x = percent * min
 
-  --print("percent: "..percent.." x: "..x)
+    -- print("percent: "..percent.." x: "..x)
 
-  return 53, x
+    return 53, x
 end
 
 function progress(current, max, pos1, pos2)
-  --Power
-  maxX, x = calc(current, max)
-  for i = 0, 3 do
-    for z = 1, maxX do
-      mon.setCursorPos(pos1 + z, pos2 + i)
-      if z <= x then
-        mon.setBackgroundColor(colors.green)
-      else
-        mon.setBackgroundColor(colors.white)
-      end
+    -- Power
+    maxX, x = calc(current, max)
+    for i = 0, 3 do
+        for z = 1, maxX do
+            mon.setCursorPos(pos1 + z, pos2 + i)
+            if z <= x then
+                mon.setBackgroundColor(colors.green)
+            else
+                mon.setBackgroundColor(colors.white)
+            end
 
-      mon.write(" ")
+            mon.write(" ")
+        end
     end
-  end
 end
 
 local function playAlarm(beeps, pitch, delay)
-  if spkr ~= nil then
-    beeps = beeps or 6
-    pitch = pitch or 1.5
-    delay = delay or 0.3
+    if playSounds then
+        if spkr ~= nil then
+            beeps = beeps or 6
+            pitch = pitch or 1.5
+            delay = delay or 0.3
 
-    for i = 1, beeps do
-        spkr.playSound("minecraft:block.note_block.pling", 3, pitch)
-        sleep(delay)
+            for i = 1, beeps do
+                spkr.playSound("minecraft:block.note_block.pling", 3, pitch)
+                sleep(delay)
+            end
+        else
+            print("Speaker not found, cannot play alarm.")
+        end
     end
-  else
-    print("Speaker not found, cannot play alarm.")
-  end
 end
 
 print("Starting Big Reactors Power Monitor...")
-playAlarm()
+--playAlarm()
+
+local function playReactorStart()
+    if playSounds then
+        -- rising tone sequence, signals "power up"
+        local pitches = {0.5, 0.75, 1.0, 1.25, 1.5}
+        for _, p in ipairs(pitches) do
+            spkr.playSound("minecraft:block.note_block.hat", 3, p)
+            sleep(0.08)
+        end
+        spkr.playSound("minecraft:block.beacon.activate", 3, 1)
+    end
+end
+
+local function playReactorStop()
+    if playSounds then
+        -- falling tone sequence, signals "power down"
+        local pitches = {1.5, 1.25, 1.0, 0.75, 0.5}
+        for _, p in ipairs(pitches) do
+            spkr.playSound("minecraft:block.note_block.hat", 3, p)
+            sleep(0.08)
+        end
+        spkr.playSound("minecraft:block.beacon.deactivate", 3, 1)
+    end
+end
 
 function draw(color)
-  mon.clear()
+    mon.clear()
 
-  power = reactor.getEnergyStored()
-  maxPower = reactor.getEnergyCapacity()
-  fuel = reactor.getFuelAmount()
-  maxFuel = reactor.getFuelAmountMax()
-  fuelConsumed = reactor.getFuelConsumedLastTick()
-  rf = reactor.getEnergyProducedLastTick()
-  maxRf = 10000
+    power = reactor.getEnergyStored()
+    maxPower = reactor.getEnergyCapacity()
+    fuel = reactor.getFuelAmount()
+    maxFuel = reactor.getFuelAmountMax()
+    fuelConsumed = reactor.getFuelConsumedLastTick()
+    rf = reactor.getEnergyProducedLastTick()
+    maxRf = 10000
 
-  mon.setCursorPos(28, 1)
-  mon.write("Reactor " .. reactor.getEnergyStoredAsText())
+    mon.setCursorPos(28, 1)
+    mon.write("Reactor " .. reactor.getEnergyStoredAsText())
 
-  mon.setCursorPos(2, 4)
-  mon.write("Power:")
-  mon.setCursorPos(1, 5)
-  mon.write(math.floor(power/1000).."kRF")
-  mon.setCursorPos(1, 6)
-  mon.write("/" .. math.floor(maxPower/1000/1000).." MFE")
+    mon.setCursorPos(2, 4)
+    mon.write("Power:")
+    mon.setCursorPos(1, 5)
+    mon.write(math.floor(power / 1000) .. "kRF")
+    mon.setCursorPos(1, 6)
+    mon.write("/" .. math.floor(maxPower / 1000 / 1000) .. " MFE")
 
-  mon.setCursorPos(2, 10)
-  mon.write("Fuel:")
-  mon.setCursorPos(1, 11)
-  mon.write(math.floor((fuel / maxFuel) * 100) .. "%")
-  mon.setCursorPos(1, 12)
-  mon.write(string.format("%.2f", fuelConsumed) .. " uB/t")
+    mon.setCursorPos(2, 10)
+    mon.write("Fuel:")
+    mon.setCursorPos(1, 11)
+    mon.write(math.floor((fuel / maxFuel) * 100) .. "%")
+    mon.setCursorPos(1, 12)
+    mon.write(string.format("%.2f", fuelConsumed) .. " uB/t")
 
-  mon.setCursorPos(2, 16)
-  mon.write("RF/t:")
-  mon.setCursorPos(1, 17)
-  mon.write(string.format("%.2f", rf / 1000) .. "kRF/t")
+    mon.setCursorPos(2, 16)
+    mon.write("RF/t:")
+    mon.setCursorPos(1, 17)
+    mon.write(string.format("%.2f", rf / 1000) .. "kRF/t")
 
-  progress(power, maxPower, 7, 3)
-  progress(fuel, maxFuel, 7, 9)
-  progress(rf, maxRf, 7, 15)
+    progress(power, maxPower, 7, 3)
+    progress(fuel, maxFuel, 7, 9)
+    progress(rf, maxRf, 7, 15)
 
-  if reactor.getActive() == true then
-    mon.setBackgroundColor(colors.blue)
-  else
-    mon.setBackgroundColor(colors.red)
-  end
+    if reactor.getActive() == true then
+        mon.setBackgroundColor(colors.blue)
+    else
+        mon.setBackgroundColor(colors.red)
+    end
 end
 
 while true do
-  draw(color)
+    draw(color)
 
-  local capacity = reactor.getEnergyCapacity()
-  local stored = reactor.getEnergyStored()
+    local capacity = reactor.getEnergyCapacity()
+    local stored = reactor.getEnergyStored()
 
-  print("Stored: " .. stored .. " Capacity: " .. capacity)
-  if stored >= (capacity * 0.8) and reactor.getActive() == true then
-    print("Reactor Energy is full, shutting down.")
-    reactor.setActive(false)
-    mon.setBackgroundColor(colors.red)
-    color = red
-  end
+    print("Stored: " .. stored .. " Capacity: " .. capacity)
+    if stored >= (capacity * 0.8) and reactor.getActive() == true then
+        print("Reactor Energy is full, shutting down.")
+        reactor.setActive(false)
+        mon.setBackgroundColor(colors.red)
+        color = red
+        playReactorStop()
+    end
 
-  if stored <= (reactor.getEnergyCapacity() / 4) and reactor.getActive() == false then
-    print("Reactor Energy is low, starting up.")
-    reactor.setActive(true)
-    mon.setBackgroundColor(colors.blue)
-    color = blue
-  end
+    if stored <= (reactor.getEnergyCapacity() / 4) and reactor.getActive() == false then
+        print("Reactor Energy is low, starting up.")
+        reactor.setActive(true)
+        mon.setBackgroundColor(colors.blue)
+        color = blue
+        playReactorStart()
+    end
 
-  if fuel <= (reactor.getFuelAmountMax() / 100) then
-    print("Reactor Fuel is low! sounding alarm.")
-    playAlarm()
-  end
+    if fuel <= (reactor.getFuelAmountMax() / 100) then
+        print("Reactor Fuel is low! sounding alarm.")
+        playAlarm()
+    end
 
-  sleep(2)
+    sleep(2)
 end
