@@ -76,7 +76,7 @@ print("Starting Big Reactors Power Monitor...")
 --playAlarm()
 
 local function playReactorStart()
-    if playSounds then
+    if playSounds and spkr ~= nil then
         -- rising tone sequence, signals "power up"
         local pitches = {0.5, 0.75, 1.0, 1.25, 1.5}
         for _, p in ipairs(pitches) do
@@ -88,7 +88,7 @@ local function playReactorStart()
 end
 
 local function playReactorStop()
-    if playSounds then
+    if playSounds and spkr ~= nil then
         -- falling tone sequence, signals "power down"
         local pitches = {1.5, 1.25, 1.0, 0.75, 0.5}
         for _, p in ipairs(pitches) do
