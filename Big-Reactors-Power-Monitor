@@ -21,37 +21,70 @@ end
 
 mon.clear()
 mon.setBackgroundColor(colors.blue)
-color = blue
 
 -- power = 0
 -- fuel = 0
 -- maxFuel = 0
 -- rf = 0
 
-function calc(min, max)
-    percent = 53 / max
-
-    x = percent * min
-
-    -- print("percent: "..percent.." x: "..x)
-
-    return 53, x
+local function clamp(value, minValue, maxValue)
+    if value < minValue then
+        return minValue
+    elseif value > maxValue then
+        return maxValue
+    end
+    return value
 end
 
-function progress(current, max, pos1, pos2)
-    -- Power
-    maxX, x = calc(current, max)
-    for i = 0, 3 do
-        for z = 1, maxX do
-            mon.setCursorPos(pos1 + z, pos2 + i)
-            if z <= x then
-                mon.setBackgroundColor(colors.green)
-            else
-                mon.setBackgroundColor(colors.white)
-            end
+local function setBGColor()
+    if reactor.getActive() then
+        mon.setBackgroundColor(colors.blue)
+    else
+        mon.setBackgroundColor(colors.red)
+    end
+end
 
-            mon.write(" ")
+local function centerText(y, text, width)
+    local x = math.max(1, math.floor((width - #text) / 2) + 1)
+    mon.setCursorPos(x, y)
+    mon.write(text)
+end
+
+local function drawBarLine(y, label, value, maxValue, note, width)
+    local labelText = label .. " "
+    mon.setCursorPos(1, y)
+    mon.write(labelText)
+
+    local text = note or ""
+    local barStart = #labelText + 1
+    local maxBarWidth = width - barStart - #text - 2
+    if maxBarWidth < 6 then
+        local line = label .. " " .. text
+        mon.setCursorPos(1, y)
+        mon.write(line)
+        return
+    end
+
+    local fraction = 0
+    if maxValue and maxValue > 0 then
+        fraction = value / maxValue
+    end
+    local fillCount = clamp(math.floor(fraction * maxBarWidth + 0.5), 0, maxBarWidth)
+
+    for i = 1, maxBarWidth do
+        mon.setCursorPos(barStart + i - 1, y)
+        if i <= fillCount then
+            mon.setBackgroundColor(colors.green)
+        else
+            mon.setBackgroundColor(colors.white)
         end
+        mon.write(" ")
+    end
+    setBGColor()
+
+    if #text > 0 then
+        mon.setCursorPos(barStart + maxBarWidth + 1, y)
+        mon.write(text)
     end
 end
 
@@ -99,7 +132,8 @@ local function playReactorStop()
     end
 end
 
-function draw(color)
+function draw()
+    setBGColor()
     mon.clear()
 
     power = reactor.getEnergyStored()
@@ -110,41 +144,32 @@ function draw(color)
     rf = reactor.getEnergyProducedLastTick()
     maxRf = 10000
 
-    mon.setCursorPos(28, 1)
-    mon.write("Reactor " .. reactor.getEnergyStoredAsText())
+    local width, height = mon.getSize()
+    local activeText = reactor.getActive() and "ACTIVE" or "INACTIVE"
+    local title = "Reactor " .. tostring(reactor.getEnergyStoredAsText()) .. " [" .. activeText .. "]"
+    centerText(1, title, width)
 
-    mon.setCursorPos(2, 4)
-    mon.write("Power:")
-    mon.setCursorPos(1, 5)
-    mon.write(math.floor(power / 1000) .. "kRF")
-    mon.setCursorPos(1, 6)
-    mon.write("/" .. math.floor(maxPower / 1000 / 1000) .. " MFE")
+    local line = 3
+    drawBarLine(line, "Power:", power, maxPower, math.floor(power / 1000) .. "kRF", width)
+    line = line + 2
+    drawBarLine(line, "Fuel:", fuel, maxFuel, math.floor((fuel / maxFuel) * 100) .. " %", width)
+    line = line + 2
 
-    mon.setCursorPos(2, 10)
-    mon.write("Fuel:")
-    mon.setCursorPos(1, 11)
-    mon.write(math.floor((fuel / maxFuel) * 100) .. "%")
-    mon.setCursorPos(1, 12)
-    mon.write(string.format("%.2f", fuelConsumed) .. " uB/t")
-
-    mon.setCursorPos(2, 16)
-    mon.write("RF/t:")
-    mon.setCursorPos(1, 17)
-    mon.write(string.format("%.2f", rf / 1000) .. "kRF/t")
-
-    progress(power, maxPower, 7, 3)
-    progress(fuel, maxFuel, 7, 9)
-    progress(rf, maxRf, 7, 15)
-
-    if reactor.getActive() == true then
-        mon.setBackgroundColor(colors.blue)
-    else
-        mon.setBackgroundColor(colors.red)
+    if height >= 10 then
+        drawBarLine(line, "RF/t:", rf, maxRf, string.format("%.2fk", rf / 1000), width)
+        line = line + 2
     end
+
+    if height >= 12 then
+        mon.setCursorPos(1, line)
+        mon.write("Fuel burn: " .. string.format("%.2f uB/t", fuelConsumed))
+    end
+
+    
 end
 
 while true do
-    draw(color)
+    draw()
 
     local capacity = reactor.getEnergyCapacity()
     local stored = reactor.getEnergyStored()
@@ -153,16 +178,12 @@ while true do
     if stored >= (capacity * 0.8) and reactor.getActive() == true then
         print("Reactor Energy is full, shutting down.")
         reactor.setActive(false)
-        mon.setBackgroundColor(colors.red)
-        color = red
         playReactorStop()
     end
 
     if stored <= (reactor.getEnergyCapacity() / 4) and reactor.getActive() == false then
         print("Reactor Energy is low, starting up.")
         reactor.setActive(true)
-        mon.setBackgroundColor(colors.blue)
-        color = blue
         playReactorStart()
     end
 
