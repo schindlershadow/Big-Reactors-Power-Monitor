@@ -1,9 +1,20 @@
-reactor = peripheral.wrap("back")
+reactor = peripheral.find("BigReactors-Reactor")
+while reactor == nil do
+  print("Reactor not found, please connect a reactor and try again.")
+  reactor = peripheral.find("BigReactors-Reactor")
+  sleep(1)
+end
 
 mon = peripheral.find("monitor")
 while mon == nil do
+  print("Monitor not found, please connect a monitor and try again.")
   mon = peripheral.find("monitor")
   sleep(1)
+end
+
+spkr = peripheral.find("speaker")
+if spkr == nil then
+  print("Speaker not found")
 end
 
 mon.clear()
@@ -41,6 +52,24 @@ function progress(current, max, pos1, pos2)
     end
   end
 end
+
+local function playAlarm(beeps, pitch, delay)
+  if spkr ~= nil then
+    beeps = beeps or 6
+    pitch = pitch or 1.5
+    delay = delay or 0.3
+
+    for i = 1, beeps do
+        spkr.playSound("minecraft:block.note_block.pling", 3, pitch)
+        sleep(delay)
+    end
+  else
+    print("Speaker not found, cannot play alarm.")
+  end
+end
+
+print("Starting Big Reactors Power Monitor...")
+playAlarm()
 
 function draw(color)
   mon.clear()
@@ -105,6 +134,11 @@ while true do
     reactor.setActive(true)
     mon.setBackgroundColor(colors.blue)
     color = blue
+  end
+
+  if fuel <= (reactor.getFuelAmountMax() / 100) then
+    print("Reactor Fuel is low! sounding alarm.")
+    playAlarm()
   end
 
   sleep(2)
