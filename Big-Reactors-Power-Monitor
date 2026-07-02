@@ -1,20 +1,23 @@
-playSounds = true
+local playSounds = true
 
-reactor = peripheral.find("BigReactors-Reactor")
+-- Queue-based sound player
+local soundQueue = {}
+
+local reactor = peripheral.find("BigReactors-Reactor")
 while reactor == nil do
     print("Reactor not found, please connect a reactor and try again.")
     reactor = peripheral.find("BigReactors-Reactor")
     sleep(1)
 end
 
-mon = peripheral.find("monitor")
+local mon = peripheral.find("monitor")
 while mon == nil do
     print("Monitor not found, please connect a monitor and try again.")
     mon = peripheral.find("monitor")
     sleep(1)
 end
 
-spkr = peripheral.find("speaker")
+local spkr = peripheral.find("speaker")
 if spkr == nil then
     print("Speaker not found")
 end
@@ -105,6 +108,8 @@ local function playAlarm(beeps, pitch, delay)
     end
 end
 
+term.clear()
+term.setCursorPos(1, 1)
 print("Starting Big Reactors Power Monitor...")
 --playAlarm()
 
@@ -132,7 +137,7 @@ local function playReactorStop()
     end
 end
 
-function draw()
+local function draw()
     setBGColor()
     mon.clear()
 
@@ -168,29 +173,56 @@ function draw()
     
 end
 
-while true do
+local function queueSound(fn)
+    table.insert(soundQueue, fn)
+end
+
+local function pushSound(fn)
+    queueSound(fn)
+    os.queueEvent("sound_queue_push")
+end
+
+local function soundPlayer()
+    while true do
+        if #soundQueue > 0 then
+            local fn = table.remove(soundQueue, 1)
+            fn()
+        else
+            os.pullEvent("sound_queue_push") -- sleep until woken
+        end
+    end
+end
+
+local function mainLoop()
+  local lastStored, lastCapacity
+  while true do
     draw()
 
     local capacity = reactor.getEnergyCapacity()
     local stored = reactor.getEnergyStored()
-
-    print("Stored: " .. stored .. " Capacity: " .. capacity)
+    if lastCapacity ~= capacity or lastStored ~= stored then
+        print("Stored: " .. stored .. " Capacity: " .. capacity)
+    end
     if stored >= (capacity * 0.8) and reactor.getActive() == true then
         print("Reactor Energy is full, shutting down.")
         reactor.setActive(false)
-        playReactorStop()
+        pushSound(playReactorStop)
     end
 
     if stored <= (reactor.getEnergyCapacity() / 4) and reactor.getActive() == false then
         print("Reactor Energy is low, starting up.")
         reactor.setActive(true)
-        playReactorStart()
+        pushSound(playReactorStart)
     end
 
     if fuel <= (reactor.getFuelAmountMax() / 100) then
         print("Reactor Fuel is low! sounding alarm.")
-        playAlarm()
+        pushSound(playAlarm)
     end
-
+    lastStored = stored
+    lastCapacity = capacity
     sleep(2)
+  end
 end
+
+parallel.waitForAny(mainLoop, soundPlayer)
