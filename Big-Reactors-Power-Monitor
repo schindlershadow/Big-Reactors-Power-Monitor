@@ -1,6 +1,7 @@
 local playSounds = true
 
 local fuel = 0
+local maxRf = 10000
 
 -- Queue-based sound player
 local soundQueue = {}
@@ -113,7 +114,7 @@ end
 term.clear()
 term.setCursorPos(1, 1)
 print("Starting Big Reactors Power Monitor...")
---playAlarm()
+-- playAlarm()
 
 local function playReactorStart()
     if playSounds and spkr ~= nil then
@@ -139,6 +140,34 @@ local function playReactorStop()
     end
 end
 
+local function formatPower(value)
+    local absValue = math.abs(value)
+    local units = {
+        {suffix = "RF/T", factor = 1},
+        {suffix = "kRF/T", factor = 1e3},
+        {suffix = "mRF/T", factor = 1e6},
+        {suffix = "gRF/T", factor = 1e9},
+        {suffix = "tRF/T", factor = 1e12},
+    }
+
+    local selected = units[1]
+    for i = 1, #units do
+        if absValue >= units[i].factor then
+            selected = units[i]
+        else
+            break
+        end
+    end
+
+    local scaled = value / selected.factor
+    local formatted = string.format("%.1f", scaled)
+    if formatted:match("%.0$") then
+        formatted = formatted:sub(1, -3)
+    end
+
+    return formatted, selected.suffix, scaled
+end
+
 local function draw()
     setBGColor()
     mon.clear()
@@ -149,7 +178,11 @@ local function draw()
     local maxFuel = reactor.getFuelAmountMax()
     local fuelConsumed = reactor.getFuelConsumedLastTick()
     local rf = reactor.getEnergyProducedLastTick()
-    local maxRf = 10000
+    if rf > maxRf then
+        maxRf = rf
+    end
+
+    local valueText, unitSuffix, scaledValue = formatPower(power)
 
     if type(power) ~= "number" then
         power = 0
@@ -179,13 +212,14 @@ local function draw()
     centerText(1, title, width)
 
     local line = 3
-    drawBarLine(line, "Power:", power, maxPower, math.floor(power / 1000) .. "kRF", width)
+    drawBarLine(line, "Power:", power, maxPower, valueText .. " " .. unitSuffix, width)
     line = line + 2
     drawBarLine(line, "Fuel:", fuel, maxFuel, math.floor((fuel / maxFuel) * 100) .. " %", width)
     line = line + 2
 
     if height >= 10 then
-        drawBarLine(line, "RF/t:", rf, maxRf, string.format("%.2fk", rf / 1000), width)
+        local rfText, rfSuffix, rfScaled = formatPower(rf)
+        drawBarLine(line, "RF/t:", rf, maxRf, rfText .. " " .. rfSuffix, width)
         line = line + 2
     end
 
@@ -194,7 +228,6 @@ local function draw()
         mon.write("Fuel burn: " .. string.format("%.2f uB/t", fuelConsumed))
     end
 
-    
 end
 
 local function queueSound(fn)
@@ -218,47 +251,51 @@ local function soundPlayer()
 end
 
 local function mainLoop()
-  local lastStored, lastCapacity
-  while true do
-    draw()
+    local lastStored, lastCapacity
+    while true do
+        if reactor ~= nil then
+            draw()
 
-    local capacity = reactor.getEnergyCapacity()
-    local stored = reactor.getEnergyStored()
-    local active = reactor.getActive()
+            local capacity = reactor.getEnergyCapacity()
+            local stored = reactor.getEnergyStored()
+            local active = reactor.getActive()
 
-    if type(capacity) ~= "number" then
-        capacity = 0
-    end
-    if type(stored) ~= "number" then
-        stored = 0
-    end
-    if type(active) ~= "boolean" then
-        active = false
-    end
+            if type(capacity) ~= "number" then
+                capacity = 0
+            end
+            if type(stored) ~= "number" then
+                stored = 0
+            end
+            if type(active) ~= "boolean" then
+                active = false
+            end
 
-    if lastCapacity ~= capacity or lastStored ~= stored then
-        print("Stored: " .. stored .. " Capacity: " .. capacity)
-    end
-    if stored >= (capacity * 0.8) and active == true then
-        print("Reactor Energy is full, shutting down.")
-        reactor.setActive(false)
-        pushSound(playReactorStop)
-    end
+            if lastCapacity ~= capacity or lastStored ~= stored then
+                print("Stored: " .. stored .. " Capacity: " .. capacity)
+            end
+            if stored >= (capacity * 0.8) and active == true then
+                print("Reactor Energy is full, shutting down.")
+                reactor.setActive(false)
+                pushSound(playReactorStop)
+            end
 
-    if stored <= (capacity / 4) and active == false then
-        print("Reactor Energy is low, starting up.")
-        reactor.setActive(true)
-        pushSound(playReactorStart)
-    end
+            if stored <= (capacity / 4) and active == false then
+                print("Reactor Energy is low, starting up.")
+                reactor.setActive(true)
+                pushSound(playReactorStart)
+            end
 
-    if fuel <= (reactor.getFuelAmountMax() / 100) then
-        print("Reactor Fuel is low! sounding alarm.")
-        pushSound(playAlarm)
+            if fuel <= (reactor.getFuelAmountMax() / 100) then
+                print("Reactor Fuel is low! sounding alarm.")
+                pushSound(playAlarm)
+            end
+            lastStored = stored
+            lastCapacity = capacity
+        else
+            reactor = peripheral.find("BigReactors-Reactor")
+        end
+        sleep(2)
     end
-    lastStored = stored
-    lastCapacity = capacity
-    sleep(2)
-  end
 end
 
 parallel.waitForAny(mainLoop, soundPlayer)
