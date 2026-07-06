@@ -1,5 +1,7 @@
 local playSounds = true
 
+local fuel = 0
+
 -- Queue-based sound player
 local soundQueue = {}
 
@@ -143,7 +145,7 @@ local function draw()
 
     local power = reactor.getEnergyStored()
     local maxPower = reactor.getEnergyCapacity()
-    local fuel = reactor.getFuelAmount()
+    fuel = reactor.getFuelAmount()
     local maxFuel = reactor.getFuelAmountMax()
     local fuelConsumed = reactor.getFuelConsumedLastTick()
     local rf = reactor.getEnergyProducedLastTick()
@@ -222,16 +224,28 @@ local function mainLoop()
 
     local capacity = reactor.getEnergyCapacity()
     local stored = reactor.getEnergyStored()
+    local active = reactor.getActive()
+
+    if type(capacity) ~= "number" then
+        capacity = 0
+    end
+    if type(stored) ~= "number" then
+        stored = 0
+    end
+    if type(active) ~= "boolean" then
+        active = false
+    end
+
     if lastCapacity ~= capacity or lastStored ~= stored then
         print("Stored: " .. stored .. " Capacity: " .. capacity)
     end
-    if stored >= (capacity * 0.8) and reactor.getActive() == true then
+    if stored >= (capacity * 0.8) and active == true then
         print("Reactor Energy is full, shutting down.")
         reactor.setActive(false)
         pushSound(playReactorStop)
     end
 
-    if stored <= (reactor.getEnergyCapacity() / 4) and reactor.getActive() == false then
+    if stored <= (capacity / 4) and active == false then
         print("Reactor Energy is low, starting up.")
         reactor.setActive(true)
         pushSound(playReactorStart)
