@@ -141,13 +141,35 @@ local function draw()
     setBGColor()
     mon.clear()
 
-    power = reactor.getEnergyStored()
-    maxPower = reactor.getEnergyCapacity()
-    fuel = reactor.getFuelAmount()
-    maxFuel = reactor.getFuelAmountMax()
-    fuelConsumed = reactor.getFuelConsumedLastTick()
-    rf = reactor.getEnergyProducedLastTick()
-    maxRf = 10000
+    local power = reactor.getEnergyStored()
+    local maxPower = reactor.getEnergyCapacity()
+    local fuel = reactor.getFuelAmount()
+    local maxFuel = reactor.getFuelAmountMax()
+    local fuelConsumed = reactor.getFuelConsumedLastTick()
+    local rf = reactor.getEnergyProducedLastTick()
+    local maxRf = 10000
+
+    if type(power) ~= "number" then
+        power = 0
+    end
+    if type(maxPower) ~= "number" then
+        maxPower = 0
+    end
+    if type(fuel) ~= "number" then
+        fuel = 0
+    end
+    if type(maxFuel) ~= "number" then
+        maxFuel = 0
+    end
+    if type(fuelConsumed) ~= "number" then
+        fuelConsumed = 0
+    end
+    if type(rf) ~= "number" then
+        rf = 0
+    end
+    if type(maxRf) ~= "number" then
+        maxRf = 0
+    end
 
     local width, height = mon.getSize()
     local activeText = reactor.getActive() and "ACTIVE" or "INACTIVE"
